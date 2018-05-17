@@ -3,6 +3,15 @@ from model import MLP
 import numpy as np
 import os
 
+flags = tf.app.flags
+flags.DEFINE_string("image_dir", "tfrecords", "The directory of dog images in tfrecord [tfrecords]")
+flags.DEFINE_string("cropping_dir", "cropping", "The directory of dog images in tfrecord with cropped [cropping]")
+flags.DEFINE_integer("img_width", 32, "Width of image")
+flags.DEFINE_integer("img_height", 32, "Height of image")
+flags.DEFINE_integer("label_num", 120, "Number of labels (breeds)")
+
+FLAGS = flags.FLAGS
+
 def loss_function(hypothesis, Y):
     with tf.variable_scope("loss", reuse=tf.AUTO_REUSE):
         loss = tf.reduce_mean(
@@ -28,24 +37,24 @@ def decode(serialized_example):
 
 
     image = tf.decode_raw(features['image'], tf.uint8)  # numpy array 형태로 되어있기 때문에 decode_raw 사용
-    image = tf.reshape(image, [1024,])
+    image = tf.reshape(image, [FLAGS.img_width*FLAGS.img_height,])
     #image.set_shape((1024))
     image = tf.cast(image, tf.float32)
 
     label = tf.decode_raw(features['label'], tf.uint8)
-    label.set_shape((120))
+    label.set_shape((FLAGS.label_num))
     label = tf.cast(label, tf.float32)
 
     return image, label
 
 
 def train(config_dict):
-    X = tf.placeholder(tf.float32, [None, 32*32])
-    Y = tf.placeholder(tf.float32, [None, 120])
+    X = tf.placeholder(tf.float32, [None, FLAGS.img_width*FLAGS.img_height])
+    Y = tf.placeholder(tf.float32, [None, FLAGS.label_num])
 
-    n_in = 32*32
+    n_in = FLAGS.img_width * FLAGS.img_height
     n_hiddens = config_dict["n_hiddens"]
-    n_out = 120
+    n_out = FLAGS.label_num
 
     mlp_model = MLP(X, n_hiddens=n_hiddens, n_in=n_in, n_out=n_out)
     loss = loss_function(mlp_model.hypothesis, Y)
@@ -53,7 +62,7 @@ def train(config_dict):
 
     import glob
     # Train data
-    filenames = glob.glob("./tfrecords/general/train/*.tfrecords")  # glob; 특정 폴더에 있는 패턴을 가진 모든 파일을 다 가져옴
+    filenames = glob.glob("./" + FLAGS.image_dir + "/" + FLAGS.cropping_dir + "/train/*.tfrecords")  # glob; 특정 폴더에 있는 패턴을 가진 모든 파일을 다 가져옴
     train_dataset = tf.data.TFRecordDataset(filenames)
     train_dataset = train_dataset.map(decode)
     train_dataset = train_dataset.shuffle(buffer_size=10000)
@@ -65,7 +74,7 @@ def train(config_dict):
     train_init_op = iterator.make_initializer(train_dataset)
 
     # Test data
-    filenames = glob.glob("./tfrecords/general/test/*.tfrecords")
+    filenames = glob.glob("./" + FLAGS.image_dir + "/" + FLAGS.cropping_dir + "/test/*.tfrecords")
     test_dataset = tf.data.TFRecordDataset(filenames)
     test_dataset = test_dataset.map(decode)
     test_dataset = test_dataset.batch(105824)   # 한번에 모든 test dataset
