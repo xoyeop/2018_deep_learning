@@ -1,5 +1,6 @@
 import tensorflow as tf
 from model import MLP
+from AlexNet import AlexNet
 import numpy as np
 import os
 
@@ -56,8 +57,12 @@ def train(config_dict):
     n_hiddens = config_dict["n_hiddens"]
     n_out = FLAGS.label_num
 
-    mlp_model = MLP(X, n_hiddens=n_hiddens, n_in=n_in, n_out=n_out)
-    loss = loss_function(mlp_model.hypothesis, Y)
+    dropout_prob = tf.placeholder(tf.float32)
+
+    alexnet_model = AlexNet(X, dropout_prob, n_out, [])
+    loss = loss_function(alexnet_model.fc8, Y)
+    #mlp_model = MLP(X, n_hiddens=n_hiddens, n_in=n_in, n_out=n_out)
+    #loss = loss_function(mlp_model.hypothesis, Y)
     train_step = training(loss, learning_rate=config_dict["learning_rate"])
 
     import glob
